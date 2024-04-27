@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+    <script>
+        let bpm = 80
+        let beatNumber = 0
+        let staveNumber = 0
+        let bpmInput
+        let startOffset = 0
+        let context
+        let beatsPerChange = 96
+        let beatsSinceLastChange = 0
+        let beatsRemaining = 0
+
+        const bpmCalc = (beatsPerMinute) => (1000 * 60) / beatsPerMinute
+        
+
+        const newBPM = (input) => {
+            console.log("resetting BPM Interval to", input, "BPM")
+            clearInterval(currentInterval)
+            beatNumber = -8
+
+            //set beat Interval
+            let beatInterval = setInterval(() => {
+                beatNumber++
+                
+                document.getElementById("beatCounter").innerHTML = beatNumber
+                beatsRemaining = beatsPerChange - (beatNumber % beatsPerChange)
+                document.getElementById("nextUp").innerHTML = beatsRemaining === beatsPerChange ? 0 : beatsRemaining > 16 ? '' : beatsRemaining
+
+                document.getElementById('output').innerHTML = ''
+                document.getElementById('nextOutput').innerHTML = ''
+                staveNumber = Math.max(Math.ceil(beatNumber / beatsPerChange) - 1, 0)
+                console.log("beatNumber", beatNumber)
+                console.log("staveNumber", staveNumber)
+                console.log("Math.ceil(beatNumber / beatsPerChange):", Math.ceil(beatNumber / beatsPerChange))
+                generateStaves(...allDrills[staveNumber])
+                generateKeySig(...allDrills[staveNumber + 1])
+                document.getElementById("currentStave").innerHTML = `This is a: ${allDrills[staveNumber][0]} ${allDrills[staveNumber][1]} ${allDrills[staveNumber][2]}`
+                document.getElementById("nextStave").innerHTML = `Next up is this <b>${allDrills[staveNumber + 1][2]}</b>`
+
+            }, bpmCalc(input))
+
+
+        }
+
+        const newVideo = (videoURL) => {
+            //just grab the videoID, which is the last 11 chars
+            videoID = videoURL.slice(-11)
+            document.getElementById("videoHolder").innerHTML = `<iframe src="https://www.youtube.com/embed/${videoID}?autoplay=1" allow="autoplay"></iframe>`
+        }
+
+        const shuffle = (array) => {
+            let currentIndex = array.length;
+
+            // While there remain elements to shuffle...
+            while (currentIndex != 0) {
+
+                // Pick a remaining element...
+                let randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+
+                // And swap it with the current element.
+                [array[currentIndex], array[randomIndex]] = [
+                array[randomIndex], array[currentIndex]];
+            }
+        }
+
+
+    </script>
+</head>
+<body>
+    <div style="font-size: 10vh;">
+        <span id="beatCounter">0</span><span>            </span><span style="color: red"id="nextUp"></span>
+    </div>
+    <!-- <h2 id="nextUp"></h2> -->
+    <input type="number" id="bpmInput" placeholder="bpmInput"/>
+    <br/>
+    <input type="text" id="videoURL" placeholder="videoURL"/>
+    <input type="number" id="startOffset" placeholder="ms (1000) to subtract from 2s start"/>
+    <button onclick="updateBPMAndVideo()">Start</button>
+    <br/>
+    <h3>Presets</h3>
+    <br/>
+    <button onclick="updateBPMAndVideo(true, `https:\/\/www.youtube.com/watch?v=rwyAP9A7WBE`, 100, 0)">100 bpm preset</button>
+    <button onclick="updateBPMAndVideo(true, `https:\/\/www.youtube.com/watch?v=E0Kxw0H_yCE`, 120, -100)">120 bpm preset</button>
+    <button onclick="updateBPMAndVideo(true, `https:\/\/www.youtube.com/watch?v=8NOKJvF8Jmw`, 140, -380)">140 bpm preset</button>
+    <!-- <button onclick="ytAPIUpdate()">Start</button> -->
+
+    <p>vf api</p>
+    <h2 id="currentStave">This is: C Major 7 Chord</h2>
+    <div id="output"></div>
+    <h4 id="nextStave">Next up is...</h4>
+    <div id="nextOutput"></div>
+    <!-- <div id="output2"></div> -->
+<!-- <div style="display: none"> -->
+    <div id="videoHolder">
+    </div>
+
+    <div id="player"></div>
+<!-- </div> -->
+    <script type="text/javascript">
+
+        
+        //MUSIC LOGIC
+
+        const scaleLibrary = {
+            'C' : {
+                'Major7' : {
+                    'key' : ['C'],
+                    'scale' : ['C/4', 'D/4', 'E/4', 'F/4', 'G/4', 'A/4', 'B/4', 'C/5', 'D/5', 'E/5', 'F/5', 'G/5', 'A/5', 'B/5', 'C/6'],
+                    'chord' : ['C/4', 'E/4', 'G/4', 'B/4', 'C/5', 'E/5', 'G/5', 'B/5', 'C/6']
+                }, 
+                'Minor7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Dominant7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Diminished7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+            },
+            'F' : {
+                'Major7' : {
+                    'key' : ['F'],
+                    'scale' : ['F/4', 'G/4', 'A/4', 'Bb/4', 'C/5', 'D/5', 'E/5', 'F/5', 'G/5', 'A/5', 'Bb/5', 'C/6', 'D/6', 'E/6', 'F/6'],
+                    'chord' : ['F/4', 'A/4', 'C/5', 'E/5', 'F/5', 'A/5', 'C/6', 'E/6', 'F/6'],
+                }, 
+                'Minor7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Dominant7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Diminished7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+            },
+            'Bb' : {
+                'Major7' : {
+                    'key' : ['Bb'],
+                    'scale' : ['Bb/3', 'C/4', 'D/4', 'Eb/4', 'F/4', 'G/4', 'A/4', 'Bb/4', 'C/5', 'D/5', 'Eb/5', 'F/5', 'G/5', 'A/5', 'Bb/5'],
+                    'chord' : ['Bb/3', 'D/4', 'F/4', 'A/4', 'Bb/4', 'D/5', 'F/5', 'A/5', 'Bb/5'],
+                }, 
+                'Minor7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Dominant7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Diminished7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+            },
+            'Eb' : {
+                'Major7' : {
+                    'key' : ['Eb'],
+                    'scale' : ['Eb/4', 'F/4', 'G/4', 'Ab/4', 'Bb/4', 'C/5', 'D/5', 'Eb/5'],
+                    'chord' : ['Eb/4', 'G/4', 'Bb/4', 'D/5', 'Eb/5'],
+                }, 
+                'Minor7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Dominant7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Diminished7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+            },
+            'Ab' : {
+                'Major7' : {
+                    'key' : ['Ab'],
+                    'scale' : ['Ab/4', 'Bb/4', 'C/5', 'Db/5', 'Eb/5', 'F/5', 'G/5', 'A/5'],
+                    'chord' : ['Ab/4', 'C/5', 'Eb/5', 'G/5', 'A/5']
+                }, 
+                'Minor7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Dominant7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Diminished7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+            },
+            'Db' : {
+                'Major7' : {
+                    'key' : ['Db'],
+                    'scale' : ['Db/4', 'Eb/4', 'F/4', 'Gb/4', 'Ab/4', 'Bb/4', 'C/5', 'Db/5', 'Eb/5', 'F/5', 'Gb/5', 'Ab/5', 'Bb/5', 'C/6', 'Db/6'],
+                    'chord' : ['Db/4', 'F/4', 'Ab/4', 'C/5', 'Db/5', 'F/5', 'Ab/5', 'C/6', 'Db/6'],
+                }, 
+                'Minor7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Dominant7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Diminished7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+            },
+            'F#' : {
+                'Major7' : {
+                    'key' : ['F#'],
+                    'scale' : ['F#/4', 'G#/4', 'A#/4', 'B/4', 'C#/5', 'D#/5', 'E#/5', 'F#/5'],
+                    'chord' : ['F#/4', 'A#/4', 'C#/5', 'E#/5', 'F#/5'],
+                }, 
+                'Minor7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Dominant7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Diminished7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+            },
+            'B' : {
+                'Major7' : {
+                    'key' : ['B'],
+                    'scale' : ['B/3', 'C#/4', 'D#/4', 'E/4', 'F#/4', 'G#/4', 'A#/4', 'B/4', 'C#/5', 'D#/5', 'E/5', 'F#/5', 'G#/5', 'A#/5', 'B/5'],
+                    'chord' : ['B/3', 'D#/4','F#/4', 'A#/4', 'B/4', 'D#/5', 'F#/5', 'A#/5', 'B/5'],
+                }, 
+                'Minor7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Dominant7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Diminished7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+            },
+            'E' : {
+                'Major7' : {
+                    'key' : ['E'],
+                    'scale' : ['E/4', 'F#/4', 'G#/4', 'A/4', 'B/4', 'C#/5', 'D#/5', 'E/5', 'F#/5', 'G#/5', 'A/5', 'B/5', 'C#/6', 'D#/6', 'E/6'],
+                    'chord' :['E/4', 'G#/4', 'B/4', 'D#/5', 'E/5', 'G#/5', 'B/5', 'D#/6', 'E/6'],
+                }, 
+                'Minor7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Dominant7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Diminished7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+            },
+            'A' : {
+                'Major7' : {
+                    'key' : ['A'],
+                    'scale' : ['A/4', 'B/4', 'C#/5', 'D/5', 'E/5', 'F#/5', 'G#/5', 'A/5'],
+                    'chord' : ['A/4', 'C#/5', 'E/5', 'G#/5', 'A/5'],
+                }, 
+                'Minor7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Dominant7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Diminished7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+            },
+            'D' : {
+                'Major7' : {
+                    'key' : ['D'],
+                    'scale' : ['D/4', 'E/4', 'F#/4', 'G/4', 'A/4', 'B/4', 'C#/5', 'D/5', 'E/5', 'F#/5', 'G/5', 'A/5', 'B/5', 'C#/6', 'D/6'],
+                    'chord' : ['D/4', 'F#/4', 'A/4', 'C#/5', 'D/5', 'F#/5', 'A/5', 'C#/6', 'D/6'],
+                }, 
+                'Minor7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Dominant7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Diminished7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+            },
+            'G' : {
+                'Major7' : {
+                    'key' : ['G'],
+                    'scale' : ['G/4', 'A/4', 'B/4', 'C/5', 'D/5', 'E/5', 'F#/5', 'G/5'],
+                    'chord' : ['G/4', 'B/4', 'D/5', 'F#/5', 'G/5'],
+                }, 
+                'Minor7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Dominant7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+                'Diminished7' : {
+                    'key' : [],
+                    'scale' : [],
+                    'chord' : []
+                }, 
+            },
+            
+        }
+
+        const accessScale = (note = 'C', type = 'Major7', desiredOutput = 'scale') => scaleLibrary[note][type][desiredOutput]
+
+        //VEXFLOW STUFF
+        //Lotta documentation here: https://github.com/0xfe/vexflow/wiki/Tutorial
+
+        // This approach to importing classes works in CJS contexts (i.e., a regular <script src="..."> tag).
+        const { Stave, StaveNote, Beam, Formatter, Renderer } = Vex;
+        
+
+        const createNoteArr = (accessScaleOutput) => {
+            let createdNoteArr = []
+            accessScaleOutput.forEach(note => {
+                // console.log(note)
+                createdNoteArr.push(new StaveNote({ keys: [note], duration: "q" }))
+            })
+            return createdNoteArr
+        }
+
+        const breakIntoMeasures = (noteArr, notesPerMeasure) => {
+            let measureArr = Array.from(Array(Math.ceil(noteArr.length / notesPerMeasure)), () => [])
+            for (let i = 0; i < noteArr.length; i++) {
+                measureArr[Math.floor(i / notesPerMeasure)].push(noteArr[i])
+            }
+            // console.log(measureArr)
+            return measureArr
+        }
+
+        const makeMeasuresIntoStaves = (measures, key) => {
+            let staveArr = []
+            let firstStave = new Stave(10, 50, 300);
+            firstStave.addClef("treble").addKeySignature(key).setContext(context).draw();
+            Formatter.FormatAndDraw(context, firstStave, measures[0])
+            staveArr.push(firstStave)
+            
+            for (let i = 1; i < measures.length; i++) {
+                let nextStave = new Stave(staveArr[i-1].width + staveArr[i-1].x, 50, 300)
+                nextStave.setContext(context).draw();
+                Formatter.FormatAndDraw(context, nextStave, measures[i]);
+                staveArr.push(nextStave)
+            }
+            // console.log(staveArr.length)
+        }
+        
+
+        const generateStaves = (note, type, desiredOutput) => {
+            // Create an SVG renderer and attach it to the DIV element with id="output".
+            const div = document.getElementById("output");
+            const renderer = new Renderer(div, Renderer.Backends.SVG);
+
+            // Configure the rendering context.
+            renderer.resize(700, 200);
+            context = renderer.getContext();
+
+            let measures = breakIntoMeasures(createNoteArr((accessScale(note, type, desiredOutput))), 8)
+            makeMeasuresIntoStaves(measures, accessScale(note, type, 'key'))
+        }
+
+        const generateKeySig = (note, type, key) => {
+            // Create an SVG renderer and attach it to the DIV element with id="output".
+            const div = document.getElementById("nextOutput");
+            const renderer = new Renderer(div, Renderer.Backends.SVG);
+
+            // Configure the rendering context.
+            renderer.resize(700, 200);
+            context = renderer.getContext();
+            
+            let firstStave = new Stave(10, 50, 300);
+            firstStave.addClef("treble").addKeySignature(note).setContext(context).draw();
+            // Formatter.FormatAndDraw(context, firstStave)
+        }
+
+        generateStaves('G', 'Major7', 'chord')
+        // generateKeySig('C', 'Major7', 'key')
+
+        let allDrills = []
+
+        for (let key in scaleLibrary) {
+            console.log(key)
+            allDrills.push([key, 'Major7', 'chord'])
+            allDrills.push([key, 'Major7', 'scale'])
+        }
+
+        shuffle(allDrills)
+        console.log(allDrills)
+
+
+        //VIDEO + PLAYER LOGIC
+        //YT iFrame API boilerplate
+        //documentation here: https://developers.google.com/youtube/iframe_api_reference
+        var tag = document.createElement('script');
+        tag.id = 'iframe-demo';
+        tag.src = 'https://www.youtube.com/iframe_api';
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        var player;
+
+        //Need to update this to make it work every time I press a button, not just first
+        const triggerNewVideo = (videoURL) => {
+            console.log("in trigger new video")
+            player = new YT.Player('player', {
+            height: '10',
+            width: '10',
+            //slice -11 to strip it down to its id
+            //which is the last 11 chars
+            videoId: videoURL.slice(-11),
+            playerVars: {
+                'playsinline': 1,
+                'autoplay' : 1
+            },
+            events: {
+                //'onReady': onPlayerReady,
+                'onStateChange': onPlayerStateChange,
+                'onError': onPlayerError
+            }
+            });
+        }
+
+        function onPlayerStateChange(event) {
+            console.log("new player state", event)
+            //when the video starts playing, reset the bpm stuff
+            if (event.data === 1) {
+                console.log("sstartig at", 2000 - startOffset)
+                setTimeout(newBPM, 2000 - startOffset, bpmInput)
+        
+            }
+        }
+
+        //error logging
+        function onPlayerError(event) {
+            console.log("ERORRO", event)
+        }
+
+        //meat of BPM stuff, can handle custom or preset videos
+        const updateBPMAndVideo = (preset = false, presetURL, presetBPM, offset = 0) => {
+            console.log("in updateBPM")
+            let videoURL
+            if (preset) {
+                startOffset = offset
+                videoURL = presetURL
+                bpmInput = presetBPM
+                triggerNewVideo(presetURL)
+            } else {
+                console.log(document.getElementById("bpmInput").value)
+                startOffset = parseInt(document.getElementById("startOffset").value)
+                bpmInput = parseInt(document.getElementById("bpmInput").value)
+                videoURL = document.getElementById("videoURL")?.value || ""
+                triggerNewVideo(videoURL)
+            }
+        }
+
+        //Not very DRY bc it exists up there as well
+        let currentInterval = setInterval(() => {
+            beatNumber++
+            document.getElementById("beatCounter").innerHTML = beatNumber
+            document.getElementById('output').innerHTML = ''
+            console.log('beatNumber:', beatNumber)
+            console.log('Math.floor(beatNumber / beatsPerChange:', Math.floor(beatNumber / beatsPerChange))
+            generateStaves(...allDrills[Math.floor(beatNumber / beatsPerChange)])
+        }, bpmCalc(bpm))
+
+
+    </script>
+</body>
